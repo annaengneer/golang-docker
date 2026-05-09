@@ -1,24 +1,80 @@
-# web-service-gin
+# golang-docker
 
-ginとmysqlを使った簡単なwebアプリケーションです。
+Go + Gin + MySQL を Docker で構築した Web アプリケーションです。  
+Docker を使用することで、ローカル環境に依存せず簡単に起動できます。
 
-## mysql
+## はじめに（重要）
 
-ホストでport 3306で起動してください。
+このアプリは Docker を使用して起動します。  
+事前に以下をインストールしてください。
 
-## 環境変数
+- Docker
+- Docker Compose
 
-mysqlを使用するために以下の環境変数を設定してください
+## 環境構築手順
 
-- DBUSER
-- DBPASS
+以下の手順に従うことで、誰でも同じ環境でアプリを起動できます。
 
-## database
+### ① リポジトリをクローン
 
-- myappでdatabaseを作成してください。
+ターミナルで以下を実行してください。
 
-- sqlディレクトリ以下にテーブル作成とseedデータ作成のsqlファイルを作成しているので実行してください
+    git clone git@github.com:annaengneer/golang-docker.git
+    cd golang-docker
 
-## docker
+### ② .env ファイルを作成
 
-docker化はしていないため、dockerを使用する場合は適宜コードを書き換えてください。
+プロジェクト直下に `.env` ファイルを作成し、以下をコピーしてください。
+
+    MYSQL_ROOT_PASSWORD=mysql
+    MYSQL_DATABASE=mysql
+    MYSQL_USER=mysql
+    MYSQL_PASSWORD=mysql
+
+    DB_USER=mysql
+    DB_PASSWORD=mysql
+    DB_HOST=mysql
+    DB_PORT=3306
+    DB_NAME=mysql
+
+※ `.env` ファイルがないとアプリは起動しません
+
+### ③ コンテナを起動
+
+以下のコマンドを実行してください。
+
+    docker compose up --build
+
+### ④ 起動確認
+
+以下の URL にアクセスしてください。
+
+http://localhost:8080
+
+「Hello World!」と表示されれば成功です。
+
+## 動作確認
+
+以下のエンドポイントで API を確認できます。
+
+- GET / → Hello World が表示されます
+- GET /albums → データ取得 API
+
+## live reload（開発用）
+
+このアプリは air を使用しており、  
+ソースコードを変更すると自動で再起動されます。
+
+## 使用技術
+
+- Go
+- Gin
+- MySQL
+- Docker / Docker Compose
+- air（live reload）
+
+## 工夫した点
+
+- Docker のマルチステージビルドを使用し、開発環境と本番環境を分離しました
+- Docker Compose を使用し、アプリとデータベースを一括で起動できるようにしました
+- 初心者でも迷わず起動できるように、環境構築手順を詳細に記載しました
