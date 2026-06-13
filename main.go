@@ -31,6 +31,7 @@ func getAlbums(c *gin.Context) {
 	rows, err := db.Query("SELECT * FROM album")
 
 	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
@@ -158,6 +159,10 @@ func main() {
 	}
 	fmt.Println("Connected!")
 
+	if err := initializeDatabase(); err != nil {
+		log.Fatal(err)
+	}
+
 	router := gin.Default()
 	router.GET("/", home)
 	router.GET("/albums", getAlbums)
@@ -174,4 +179,36 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func initializeDatabase() error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS album (
+			id BIGSERIAL PRIMARY KEY,
+			title VARCHAR(128) NOT NULL,
+			artist VARCHAR(255) NOT NULL,
+			price DECIMAL(5,2) NOT NULL
+		)
+	`)
+	if err != nil {
+		return err
+	}
+
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM album").Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO album (title, artist, price)
+		VALUES
+			('Blue Train', 'John Coltrane', 56.99),
+			('Giant Steps', 'John Coltrane', 63.99),
+			('Jeru', 'Gerry Mulligan', 17.99),
+			('Sarah Vaughan', 'Sarah Vaughan', 34.98)
+	`)
+	return err
 }
