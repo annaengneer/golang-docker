@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 var db *sql.DB
@@ -61,20 +61,19 @@ func postAlbums(c *gin.Context) {
 		return
 	}
 
-	result, err := db.Exec("INSERT INTO album (title, artist, price) VALUES (?, ?, ?)", newAlbum.Title, newAlbum.Artist, newAlbum.Price)
-	if err != nil {
-		c.IndentedJSON(http.StatusUnprocessableEntity, gin.H{"message": err})
-		return
-	}
-
-	id, err := result.LastInsertId()
+	err = db.QueryRow(
+		"INSERT INTO album (title, artist, price) VALUES ($1, $2, $3) RETURNING id",
+		newAlbum.Title,
+		newAlbum.Artist,
+		newAlbum.Price,
+	).Scan(&newAlbum.ID)
 	if err != nil {
 		c.IndentedJSON(http.StatusUnprocessableEntity, gin.H{"message": err})
 		return
 	}
 
 	var createdAlbum Album
-	createdAlbum.ID = id
+	createdAlbum.ID = newAlbum.ID
 	createdAlbum.Artist = newAlbum.Artist
 	createdAlbum.Price = newAlbum.Price
 	createdAlbum.Title = newAlbum.Title
@@ -86,7 +85,7 @@ func getAlbumByID(c *gin.Context) {
 
 	var album Album
 
-	row := db.QueryRow("SELECT * FROM album WHERE id = ?", id)
+	row := db.QueryRow("SELECT * FROM album WHERE id = $1", id)
 	if err := row.Scan(&album.ID, &album.Title, &album.Artist, &album.Price); err != nil {
 		if err == sql.ErrNoRows {
 			c.IndentedJSON(http.StatusNotFound, gin.H{"message": err})
@@ -106,7 +105,7 @@ func updateAlbumByID(c *gin.Context) {
 		return
 	}
 
-	_, err := db.Exec("UPDATE album SET title = ?, artist = ?, price = ? WHERE id = ?", updateAlbum.Title, updateAlbum.Artist, updateAlbum.Price, id)
+	_, err := db.Exec("UPDATE album SET title = $1, artist = $2, price = $3 WHERE id = $4", updateAlbum.Title, updateAlbum.Artist, updateAlbum.Price, id)
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "update error"})
 		return
@@ -120,7 +119,7 @@ func deleteAlbumByID(c *gin.Context) {
 
 	var album Album
 
-	row := db.QueryRow("SELECT * FROM album WHERE id = ?", id)
+	row := db.QueryRow("SELECT * FROM album WHERE id = $1", id)
 	if err := row.Scan(&album.ID, &album.Title, &album.Artist, &album.Price); err != nil {
 		if err == sql.ErrNoRows {
 			c.IndentedJSON(http.StatusNotFound, gin.H{"message": err})
@@ -128,7 +127,7 @@ func deleteAlbumByID(c *gin.Context) {
 		}
 	}
 
-	if _, err := db.Exec("DELETE FROM album WHERE id = ?", id); err != nil {
+	if _, err := db.Exec("DELETE FROM album WHERE id = $1", id); err != nil {
 		c.IndentedJSON(http.StatusUnprocessableEntity, gin.H{"message": err})
 		return
 	}
@@ -137,19 +136,18 @@ func deleteAlbumByID(c *gin.Context) {
 }
 
 func main() {
-	config := mysql.Config{
-		User:                 os.Getenv("DB_USER"),
-		Passwd:               os.Getenv("DB_PASSWORD"),
-		Net:                  "tcp",
-		Addr:                 fmt.Sprintf("%s:%s", os.Getenv("DB_HOST"), os.Getenv("DB_PORT")),
-		DBName:               os.Getenv("DB_NAME"),
-		AllowNativePasswords: false,
-	}
-
-	fmt.Println(config.FormatDSN())
+	dsn := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"),
+		getEnv("DB_SSLMODE", "disable"),
+	)
 
 	var err error
-	db, err = sql.Open("mysql", config.FormatDSN())
+	db, err = sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -169,4 +167,11 @@ func main() {
 	router.DELETE("/albums/:id", deleteAlbumByID)
 
 	router.Run()
+}
+
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }

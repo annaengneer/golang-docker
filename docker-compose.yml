@@ -1,20 +1,24 @@
-version: '3.8'
-
 services:
-  mysql:
-    container_name: mysql
-    image: mysql:8.0
+  postgres:
+    container_name: postgres
+    image: postgres:16-alpine
     restart: always
     env_file:
       - .env
     environment:
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
-      - 3306:3306
+      - 5432:5432
     volumes:
-      - db:/var/lib/mysql
+      - db:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   api:
     container_name: api
     build:
@@ -29,8 +33,10 @@ services:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
       - DB_NAME=${DB_NAME}
+      - DB_SSLMODE=${DB_SSLMODE}
     depends_on:
-      - mysql
+      postgres:
+        condition: service_healthy
     volumes:
       - .:/app
 volumes:
