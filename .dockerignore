@@ -1,0 +1,7 @@
+.git
+.cache
+.env
+tmp
+main
+web-service-gin
+*.log
