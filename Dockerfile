@@ -8,7 +8,7 @@ RUN go mod download
 
 RUN go install github.com/air-verse/air@latest
 
-RUN go build -o main
+RUN CGO_ENABLED=0 GOOS=linux go build -o main
 
 CMD ["air"]
 
